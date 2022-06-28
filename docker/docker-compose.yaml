@@ -43,7 +43,7 @@ services:
       - ${BASE_STORAGE_DIR}/mysql:/bitnami/mysql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - '3306:3306'
+      - '3317:3306'
 
   finclip-redis:
     image: ${redis}
