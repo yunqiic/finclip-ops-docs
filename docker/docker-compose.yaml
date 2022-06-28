@@ -1,0 +1,725 @@
+version: '3.8'
+services:
+  finclip-gateway:
+    image: ${gateway}
+    restart: always
+    container_name: gateway
+    environment:
+      KONG_HEADERS: "off"
+      KONG_TRUSTED_IPS: 10.0.0.0/8,192.168.0.0/16,172.16.0.0/12
+      KONG_REAL_IP_RECURSIVE: "on"
+      KONG_REAL_IP_HEADER: X-Forwarded-For
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001 reuseport backlog=16384, 0.0.0.0:8444 http2 ssl reuseport backlog=16384"
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_MEM_CACHE_SIZE: 512m
+      KONG_LOG_LEVEL: info
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PLUGINS: bundled,prometheus,jwt-claims-to-headers
+    volumes:
+      - "./kong.yml:/etc/kong/kong.yml:ro"
+    ports:
+      - ${PORT}:8000
+
+  finclip-mysql:
+    image: ${mysql}
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_USER: 'root'
+      MYSQL_ROOT_PASSWORD: '4OwJbHCzKN2Gpg'
+      TZ: 'Asia/Shanghai'
+      MYSQL_CHARACTER_SET: "utf8mb4"
+      MYSQL_CHARACTER_SET_CLIENT: "utf8mb4"
+      MYSQL_CHARACTER_SET_SERVER: "utf8mb4"
+      MYSQL_CHARACTER_SET_SYSTEM: "utf8mb4"
+      MYSQL_COLLATE: "utf8mb4_general_ci"
+    logging:
+      options:
+        max-size: '64m'
+        max-file: '5'
+      driver: json-file
+    volumes:
+      - ${BASE_STORAGE_DIR}/mysql:/bitnami/mysql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - '3306:3306'
+
+  finclip-redis:
+    image: ${redis}
+    container_name: redis
+    restart: always
+    command: redis-server --appendonly no --requirepass "URgZAoSeu1"
+    logging:
+      options:
+        max-size: '64m'
+        max-file: '5'
+      driver: json-file
+    volumes:
+      - ${BASE_STORAGE_DIR}/redis:/data/
+
+  finclip-minio:
+    image: ${minio}
+    container_name: minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: finogeeks
+      MINIO_ROOT_PASSWORD: '!encAnK88#@abIObcd)9'
+    volumes:
+      - ${BASE_STORAGE_DIR}/minio/:/data
+    command:
+      - server
+      - /data
+    logging:
+      options:
+        max-size: '64m'
+        max-file: '5'
+      driver: json-file
+
+  mop-account-system:
+    image: ${mop_account_system}
+    restart: always
+    container_name: mop-account-system
+    environment:
+      CONSUL_TAG: mop-finstore
+      HTTP_PORT: '8080'
+      DB_NAME: "mop-account-system-finclip-staging"
+      HTTP_MODE: 'debug'
+      CAPTCHA_SHOW_COUNT: '9'
+      LOG_MODE: 'debug'
+      KONG_URL_PREFIX: 'http://finclip-gateway:8001'
+      KONG_JWT_TYPE: "2"
+      ORGAN_EXPIRED_MONTH: '1200'
+      ALLOW_APPLY_ID_NUM: '10'
+      COMMON_VERIFY_CODE: '380295'
+      RESET_PASSWORD: '123Abc'
+      OPER_ADMIN_NAME: 'admin'
+      OPER_ADMIN_ACCOUNT: 'admin'
+      OPER_ADMIN_PHONE: '18220595937'
+      OPER_ADMIN_PASSWORD: '123Abc'
+      MAX_REDIS_CLIENT_NUM: '100'
+      PWD_ERR_COUNT_LIMITE: "10"
+      DEVELOP_LEVEL: 'debug'
+      VERIFY_CODE_URL_PREFIX: 'http://mop-verify-code-gateway:8080'
+      OPERATE_LOG_TOPIC: 'mop_finclip-staging_operation_log'
+      ORDER_RIGHTS_MODIFY_URL: http://mop-purchasing-rights-manager:8080/api/v1/mop/mop-purchasing-rights-manager/rights/modify
+      RIGHT_UTL_PREFIX: http://mop-purchasing-rights-manager:8080
+      NOTIFY_DATA_TOPIC: "mop_finclip-staging_notify_data_topic"
+      ZIPKIN_URL: ''
+      VERIFY_CODE_TYPE: 'mop'
+      ENV: "mop-private"
+      PUB_ENV: "mop-private"
+      REDIS_MODE: "single"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+      MONGO_URL: ''
+      ENV_TAG : "mini"
+    depends_on:
+      - finclip-gateway
+      - finclip-mysql
+      - mop-license-checker
+
+  mop-app-manage-svr:
+    image: ${mop_app_manage_svr}
+    restart: always
+    container_name: mop-app-manage-svr
+    environment:
+      CONSUL_TAG: mop-finstore
+      CHECK_MARKET: "false"
+      SPECIFY_APPID: "false"
+      OPEN_PURCH_AUTH: 'true'
+      OPEN_FIX_OLD: 'false'
+      DB_NAME: "mop-finstore-backend-finclip-staging"
+      HTTP_PORT: "8080"
+      QRCODE_EXPIRE_TIME: "120"
+      NETDISK_HOST: http://netdisk:9999
+      IAM_ENABLED: "false"
+      ACCOUNT_PROVIDER_URL: "http://mop-account-system:8080/api/v1/mop/applets-ecol-account/organ/platform/account/organInfo/"
+      NOTIFICATION_PROVIDER_URL: "http://mop-account-system:8080/api/v1/mop/applets-ecol-account/operation/organ/addAppidNum"
+      GET_ROLE_URL: "http://mop-account-system:8080/api/v1/mop/applets-ecol-account/organ/platform/account/power/"
+      MOP_DOMAIN_URL: "http://mop-domain-manager:8080/api/v1/mop/applets-ecol-domain/internal/all/"
+      NETDISK_DOWNLOAD_URL_PREFIX: "/api/v1/mop/netdisk/download/"
+      IS_MOP: "true"
+      REDIS_EXPIRE_TIME: "180"
+      APP_SECRET_SALT: "18e87dc98acfb44e"
+      GROUP_INFO_PROVIDER_URL: "http://mop-account-system:8080/api/v1/mop/applets-ecol-account/organ/business/info/"
+      ACCOUNT_INFO_URL: "http://mop-account-system:8080/api/v1/mop/applets-ecol-account/organ/account/info/"
+      ADMIN_ACCOUNT_INFO_URL: "http://mop-account-system:8080/api/v1/mop/applets-ecol-account/operation/worker/detail/"
+      OPERATE_LOG_TOPIC: 'mop_finclip-staging_operation_log'
+      NOTIFY_DATA_TOPIC: 'mop_finclip-staging_notify_data_topic'
+      ZIPKIN_URL: ''
+      CODE_PACKAGE_NUM_LIMIT: "20"
+      BUILD_DB_NAME: "mop-applets-build-finclip-staging"
+      PUBLISH_ENV: "mop-private"
+      PUB_ENV: "mop-private"
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      API_SERVER: https://finclip-staging.finogeeks.club
+      APM_SERVER: https://finclip-staging.finogeeks.club
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - mop-netdisk-proxy
+      - finclip-redis
+      - finclip-mysql
+      - mop-account-system
+      - mop-notify
+      - mop-domain-manager
+
+  mop-applet-build:
+    image: ${mop_applet_build}
+    restart: always
+    container_name: mop-applet-build
+    environment:
+      FINSTORE_SERVER: 'http://mop-app-manage-svr:8080'
+      ACCOUNT_SERVER: 'http://mop-account-system:8080'
+      PORT: '8080'
+      UPDATE_APPINFO_HOST: 'http://mop-app-manage-svr:8080'
+      ENTRY_URL: ''
+      IS_COMMUNITY: 'false'
+      IS_UPLOAD_SOURCE: "true"
+
+  mop-applet-build-manager:
+    image: ${mop_applet_build_manager}
+    restart: always
+    container_name: mop-applet-build-manager
+    environment:
+      FINSTORE_SERVER: 'http://mop-app-manage-svr:8080'
+      DB_NAME: "mop-applets-build-finclip-staging"
+      ACCOUNT_SERVER: 'http://mop-account-system:8080'
+      ENCRYPT_ANDROID_VERSION_LOW: 'android_2.12.1'
+      ENCRYPT_IOS_VERSION_LOW: 'ios_2.12.5'
+      NO_ENCRYPT_VERSIONS: 'android_2.12.2,ios_2.12.6'
+      NET_DISK_DOWNLOAD_PRE: /api/v1/mop/netdisk/download/
+      PORT: '8080'
+      ZIPKIN_URL: ""
+      CODE_PACKAGE_NUM_LIMIT: "20"
+      NOTIFY_DATA_TOPIC: 'mop_finclip-staging_notify_data_topic'
+      IS_UPLOAD_SOURCE: "false"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - netdisk
+      - finclip-mysql
+
+  mop-article-pub-center:
+    image: ${mop_article_pub_center}
+    restart: always
+    container_name: mop-article-pub-center
+    environment:
+      PUBLISH_ENV: "mop-private"
+      HTTP_PORT: '8080'
+      ROUTE_MODE: 'debug'
+      LOG_MODE: 'debug'
+      MAX_REDIS_CLIENT_NUM: '20'
+      CRON_KEY_PRE: 'article_publish_cron_'
+      NOTIFY_TOPIC: 'mop_finclip-staging_notify_data_topic'
+      NOTIFY_URL: 'http://mop-notify:8080'
+      AUTH_CHECK_URL: 'http://mop-account-system:8080'
+      ACCOUNT_INFO_URL: 'http://mop-account-system:8080/api/v1/mop/applets-ecol-account/operation/worker/detail/'
+      WECHAT_TOKEN_URL: 'https://api.weixin.qq.com/cgi-bin/token'
+      WECHAT_APP_CODE_URL: 'https://api.weixin.qq.com/wxa/getwxacodeunlimit'
+      ALLOW_APPLY_ID_NUM: '10'
+      ALLOW_BIND_NUM: '10'
+      ALLOW_MEM_NUM: '99'
+      PER_ALLOW_APPID_NUM: '2'
+      PER_ALLOW_BIND_NUM: '1'
+      PER_ALLOW_MEM_NUM: '0'
+      ZIPKIN_URL: ''
+      DB_NAME: "finclip-article-pub-center-finclip-staging"
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-redis
+      - finclip-mysql
+      - mop-notify
+
+  mop-fast-trial-manager:
+    image: ${mop_fast_trial_manager}
+    container_name: mop-fast-trial-manager
+    restart: always
+    environment:
+      HTTP_PORT: '8080'
+      MONGO_URL: ''
+      REDIS_MODE: 'single'
+      REDIS_ADDR: 'redis://finclip-redis:6379/8'
+      REDIS_PASSWORD: "URgZAoSeu1"
+      UAT_REPORT_DATA_URL: 'https://mp.finogeeks.com/api/v1/mop/mop-fast-trial-manager/info/apply'
+      COMMUNITY_VERIFYCODE_URL: 'https://mp.finogeeks.com/api/v1/mop/open-api/verify-code'
+      PUB_ENV: "mop-community"
+    depends_on:
+      - finclip-redis
+
+  mop-audit-manage-svr:
+    image: ${mop_audit_manage_svr}
+    restart: always
+    container_name: mop-audit-manage-svr
+    environment:
+      CONSUL_TAG: mop-finstore
+      HTTP_PORT: '8080'
+      HTTP_MODE: 'release'
+      LOG_MODE: 'debug'
+      REDIS_EXPIRE_TIME: '180'
+      OPERATE_LOG_TOPIC: 'mop_finclip-staging_operation_log'
+      NOTIFY_DATA_TOPIC: 'mop_finclip-staging_notify_data_topic'
+      NETDISK_DOWNLOAD_URL_PREFIX: /api/v1/mop/netdisk/download/
+      PUBLISH_ENV: "mop-private"
+      DB_NAME: "mop-audit-manage-svr-finclip-staging"
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - mop-account-system
+      - finclip-mysql
+
+  mop-auth-checker:
+    image: ${mop_auth_checker}
+    restart: always
+    container_name: mop-auth-checker
+    environment:
+      HTTP_PORT: '8080'
+      HTTP_MODE: 'debug'
+      LOG_MODE: 'debug'
+      DB_NAME: "mop-auth-checker-finclip-staging"
+      VERSION: v2
+      CONSUL_KV_SERVICE_PATH: "/finclip/config/finchat-test/mop-auth-checker"
+      CONSUL_KV_PUBLIC_PATH: ""
+      PUB_ENV: "mop-private"
+      INIT_OPER_ADMIN: "yes"
+      REDIS_MODE: "cluster"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+      
+  mop-basic-pack-svr:
+    image: ${mop_basic_pack_svr}
+    restart: always
+    container_name: mop-basic-pack-svr
+    environment:
+      CONSUL_TAG: mop-finstore
+      PUBLISH_ENV: "mop-private"
+      HTTP_PORT: '8080'
+      ROUTE_MODE: 'debug'
+      LOG_MODE: 'debug'
+      DB_NAME: "mop-basic-pack-finclip-staging"
+      BASIC_SEQ_KEY: 'mop_basic_pack_sequence_key_private'
+      BASIC_LATEST_VER_KEY: 'mop_latest_basic_pack_key_private'
+      NOTIFY_TOPIC: 'mop_finclip-staging_notify_data_topic'
+      NOTIFY_URL: 'http://mop-notify:8080'
+      NETDISK_HOST: 'http://netdisk:9999'
+      NETDISK_UPLOAD_URL: '/api/v1/netdisk/upload/self?type=file&content={}'
+      ENTRY_URL: ''
+      NETDISK_DOWNLOAD_URL_PRE: '/api/v1/mop/netdisk/download/'
+      ZIPKIN_URL: ''
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      ENCRYPT_IOS_VERSION_LOW: 2.23.2
+      ENCRYPT_ANDROID_VERSION_LOW: 2.23.1
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-redis
+      - finclip-mysql
+      - netdisk
+
+  mop-control-manager:
+    image: ${mop_control_manager}
+    restart: always
+    container_name: mop-control-manager
+    command:
+      - sh
+      - -c
+      - |
+        sleep 10s
+        /opt/mop-control-manager
+    environment:
+      CONSUL_TAG: mop-finstore
+      HTTP_PORT: '8080'
+      DB_NAME: "mop-control-manager-finclip-staging"
+      COMMON_APM_URL: ''
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-mysql
+      - mop-netdisk-proxy
+      - netdisk
+
+  mop-device-security:
+    image: ${mop_device_security}
+    restart: always
+    container_name: mop-device-security
+    environment:
+      HTTP_PORT: '8080'
+      ACTIVE_MIN: '60'
+      MAX_COROUTINES_NUM: '1000'
+      MAX_INACTIVE_EXIST_TIME: '1209600'
+      DB_NAME: "mop-applets-ecol-device-security-finclip-staging"
+      KONG_URL_PREFIX: 'http://finclip-gateway:8001'
+      KONG_JWT_TYPE: '2'
+      KONG_JWT_KEY: ek5XS0x1SW9ZUkpubVR2aFY3U1dQOUVMcDJoL2hsYUloem1XMFFscHBBST0K
+      KONG_JWT_SECRET: finclip
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+      
+    depends_on:
+      - finclip-mysql
+      - finclip-gateway
+      - finclip-redis
+
+  mop-domain-manager:
+    image: ${mop_domain_manager}
+    restart: always
+    container_name: mop-domain-manager
+    environment:
+      CONSUL_TAG: mop-finstore
+      HTTP_PORT: '8080'
+      DB_NAME: "finclip-domain-manager-finclip-staging"
+      SERVICE_DOMAIN_MAX_MODIFY_NUM: '10'
+      BUSINESS_DOMAIN_MAX_MODIFY_NUM: '50'
+      BUSINESS_DOMAIN_MAX_NUM: '20'
+      WHITELIST_DOMAIN_MAX_NUM: '999999'
+      SERVICE_DOMAIN_MAX_NUM: '20'
+      OPERATE_LOG_TOPIC: 'mop_finclip-staging_operation_log'
+      ZIPKIN_URL: ''
+      CHECK_BUSINESS_DOMAIN: 'false'
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-mysql
+      - mop-account-system
+
+  mop-feedback-svr:
+    image: ${mop_feedback_svr}
+    restart: always
+    container_name: mop-feedback-svr
+    environment:
+      PUBLISH_ENV: "mop-private"
+      HTTP_PORT: '8080'
+      ROUTE_MODE: 'debug'
+      LOG_MODE: 'debug'
+      GET_ORGAN_ID_URL: 'http://mop-app-manage-svr:8080/api/v1/mop/finstore/organId/'
+      GET_ORGAN_INFO_URL: 'http://mop-account-system:8080/api/v1/mop/applets-ecol-account/organ/business/info/'
+      ZIPKIN_URL: ''
+      DB_NAME: "finclip-feedback-svr-finclip-staging"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-mysql
+
+  mop-front-login:
+    image: ${mop_front_login}
+    restart: always
+    container_name: mop-front-login
+    environment:
+      NGINX_PORT: "8080"
+      FINCLIP_API_ENDPOINT: http://finclip-gateway:8000/
+      API_URL: http://finclip-gateway:8000/
+    depends_on:
+      - finclip-gateway
+
+  mop-front-mechanism:
+    image: ${mop_front_mechanism}
+    restart: always
+    container_name: mop-front-mechanism
+    environment:
+      API_URL: 'http://finclip-gateway:8000/'
+      NGINX_PORT: "80"
+      LOGO_PREFIX: https://public-1251849568.cos.ap-guangzhou.myqcloud.com/homeSite/picture_private/logo/prefix/
+      FINCLIP_API_ENDPOINT: http://finclip-gateway:8000/
+    depends_on:
+      - finclip-gateway
+
+  mop-front-operate:
+    image: ${mop_front_operate}
+    restart: always
+    container_name: mop-front-operate
+    environment:
+      API_URL: 'http://finclip-gateway:8000/'
+      NGINX_PORT: "80"
+      LOGO_PREFIX: https://public-1251849568.cos.ap-guangzhou.myqcloud.com/homeSite/picture_private/logo/prefix/
+      FINCLIP_API_ENDPOINT: http://finclip-gateway:8000/
+    depends_on:
+      - finclip-gateway
+
+  mop-help-center-svr:
+    image: ${mop_help_center_svr}
+    restart: always
+    container_name: mop-help-center-svr
+    environment:
+      PUBLISH_ENV: "mop-private"
+      ROUTE_MODE: 'debug'
+      LOG_MODE: 'debug'
+      DB_NAME: "finclip-help-center-svr-finclip-staging"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+
+  mop-license-checker:
+    image: ${mop_license_checker}
+    restart: always
+    container_name: mop-license-checker
+    command:
+      - sh
+      - -c
+      - |
+        sleep 10s
+        /opt/mop-license-checker
+    environment:
+      CONSUL_TAG: mop-finstore
+      HTTP_PORT: '8080'
+      LICENSE: 'gyxXK0fvBxoS5Tdx6srr/nX8vTC6wyKyDI4WjsbRQLNVZ50qHtDfFf1fCx4A7ExfPzzQj4eg3tZNQf1hmL7+lwGh4tMQgB8kFiuqc9wbjWaC5CzJn1JLalPEJldxamwS7rtnoo/50Tq00cXLjbHG6FDkNKOirSbOhoHksWYLKKEitDHb23wp3DaK7WqqVMMe5+yUnSK6e2YSl4MiKuLkZ5Ac4/BUlvFUaXWFE8eX2Mw/wIS1Jes0KOS4eAwj24nAWMuKus+ThWiYP5e0gHzl0WbN6jnKTfUBQaRx7alOhql91LwzgIQPnaD0d1bcyaLf2jac8DIAu/3U7nYfzrbf1l9qlUnxKicaDbZFH02IgxoR5EcKV0Cqye3MsW/NPZRWfWnq0RMVQdUQucQI9pm780P82XyFUdGFTZq18YZx9zpMOyzcm59Mm49vkv200B5gNMQRgTBEBZDVsQSgMANqEOZipr3gIBnDoYnzj94j9dJpXUthQR3JSYM4J/zW9LLE/Ugyw0nwVirVfrOs8PRG+1yiQ0cjqtHHxM1oDPJmESpRcQcyBkk6x60+b57HUriV+9uLrU6vz0ECKvwkwLOJZqddyzplJoADEBtie6aoXXjYOI9DrkFI7AJzRuMYlphRgHEDBiK+qA0NtjboGOoY1pIhIkw3ZMCc3E/l//p9Jm/zkIPmlEaHNYmqFLP660AUwEMRP8fwqmy+ZRsfwSApYUhs0rJTznS+MSK2+MVbqunjS9XwYwU+eDwS/dy9fVjQMlknBM2kpfJL+woawlcTlH6WLVovQesfxUr6aj3jGOH8GVX901tE6iJyEm+JAXM5m7hNLHAnRisQ8ReXM/2GDAAeeADU17OCB9svA3hbrDp5VI86jJzYOL8PqnITGBPLxbgL8RyyirEJRz5/ms8X+g=='
+      ORGAN_NAME: '社区版'
+    depends_on:
+      - mop-netdisk-proxy
+      - mop-private-init-server
+
+  mop-netdisk-proxy:
+    image: ${mop_netdisk_proxy}
+    restart: always
+    container_name: mop-netdisk-proxy
+    environment:
+      PUBLISH_ENV: "mop-private"
+      HTTP_PORT: '8080'
+      ROUTE_MODE: 'debug'
+      LOG_MODE: 'debug'
+      DB_NAME: "mop-netdisk-proxy-finclip-staging"
+      REDIS_MAX_CLIENT_NUM: '20'
+      NETDISK_HOST: 'http://netdisk:9999'
+      NETDISK_UPLOAD_URL: '/api/v1/netdisk/upload/self'
+      NETDISK_DOWNLOAD_URL: '/api/v1/netdisk/download/'
+      NETDISK_DOWNLOAD_THU_URL: '/api/v1/netdisk/thumbnail/'
+      AUTH_EXPIRED_SEC: '10'
+      ZIPKIN_URL:
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - netdisk
+      - finclip-redis
+      - finclip-mysql
+
+  mop-notify:
+    image: ${mop_notify}
+    restart: always
+    container_name: mop-notify
+    environment:
+      HTTP_PORT: '8080'
+      DB_NAME: "finclip-notify-finclip-staging"
+      HTTP_MODE: 'debug'
+      LOG_MODE: 'debug'
+      NOTIFY_DATA_TOPIC: 'mop_finclip-staging_notify_data_topic'
+      ZIPKIN_URL: ''
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-mysql
+
+  mop-open-api:
+    image: ${mop_open_api}
+    restart: always
+    container_name: mop-open-api
+    environment:
+      CONSUL_TAG: mop-finstore
+      PUB_ENV: "mop-private"
+      REQ_TYPE: "http"
+      HTTP_PORT: '8080'
+      BUSINESS_LOG_DIR: /var/log/open-api
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      APPLET_CACHE_TIME: "10"
+      OPEN_PRIVATE_DATA_REPORT: 'false'
+      KAFKA_DATA_OPEN: 'false'
+      FRQ_TYPE: 'mem'
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-redis
+      - finclip-mysql
+      - mop-license-checker
+
+  mop-private-init-server:
+    image: ${mop_private_init_server}
+    restart: always
+    container_name: mop-private-init-server
+    command:
+      - sh
+      - -c
+      - |
+        sleep 20s
+        /opt/mop-private-init-server
+    environment:
+      CONSUL_TAG: mop-finstore
+      HTTP_PORT: '8080'
+      NETDISK_URL: 'http://netdisk:9999'
+      ORGAN_NAME: '社区版'
+      DB_NAME: "mop-account-system-finclip-staging"
+      NETDISK_USER: '@netdisk:mp.finogeeks.com'
+      ORGAN_PATH: community
+      AUTO_REGISTER: "1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+      PUB_ENV: mop-community
+    depends_on:
+      - mop-netdisk-proxy
+      - finclip-mysql
+
+  mop-rule-engine-svr:
+    image: ${mop_rule_engine_svr}
+    restart: always
+    container_name: mop-rule-engine-svr
+    environment:
+      CONSUL_TAG: mop-finstore
+      PUBLISH_ENV: "mop-private"
+      ROUTE_MODE: 'debug'
+      LOG_MODE: 'debug'
+      DB_NAME: "mop-rule-engine-finclip-staging"
+      NOTIFY_TOPIC: 'mop_finclip-staging_notify_data_topic'
+      NETDISK_HOST: 'http://netdisk:9999'
+      NETDISK_UPLOAD_URL: '/api/v1/netdisk/upload/self'
+      KAFKA_DATA_LOG_TOPIC: 'mop_finclip-staging_operation_log'
+      NETDISK_DOWN_URL: '/api/v1/netdisk/download/'
+      GET_GRAY_STS_VER_LIST: /api/v1/mop/finstore/rule-engine/statics/ver-list
+      PUB_ENV: mop-private
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-redis
+      - finclip-mysql
+
+  finclip-app-ext-svr:
+    image: ${mop_app_ext_svr}
+    restart: always
+    container_name: finclip-app-ext-svr
+    environment:
+      CONSUL_TAG: mop-finstore
+      PUBLISH_ENV: "mop-private"
+      ROUTE_MODE: 'debug'
+      LOG_MODE: 'debug'
+      PUB_ENV: mop-private
+      REDIS_MODE: "single"
+      REDIS_URL: "redis://finclip-redis:6379/6"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      GET_APP_INFO_BY_APPID_URL: "http://mop-app-manage-svr:8080/api/v1/mop/finstore/dev/app/"
+      GET_APP_LATEST_INFO_BY_APPID_URL: "http://mop-app-manage-svr:8080/api/v1/mop/finstore/admin/app-info/latest-pub"
+      KAFKA_ADDR: ''
+    depends_on:
+      - finclip-redis
+      - finclip-mysql
+      - mop-app-manage-svr
+
+  mop-scattered-page:
+    image: ${mop_scattered_page}
+    restart: always
+    container_name: mop-scattered-page
+    environment:
+      API_URL: 'http://finclip-gateway:8000/'
+      NGINX_PORT: "80"
+
+  mop-verify-code-gateway:
+    image: ${mop_verify_code_gateway}
+    restart: always
+    container_name: mop-verify-code-gateway
+    environment:
+      ZIPKIN_STOS: 'false'
+      PROVIDER_PHONE_URL: ''
+      PROVIDER_EMAIL_URL: ''
+      ZIPKIN_URL: ''
+      FINOGEEKS_TYPES: mop,mop-fast-trial,mop-register,mop-get-quality-control-doc
+
+  netdisk:
+    image: ${netdisk}
+    restart: always
+    container_name: netdisk
+    environment:
+      REDIS_MODE: "single"
+      REDIS_ADDR: "redis://finclip-redis:6379/6"
+      REDIS_PASSWORD: "URgZAoSeu1"
+      HTTP_PORT: "9999"
+      ENABLE_MONITOR: "true"
+      enableKafka: "false"
+      ENDPOINT: "finclip-minio:9000"
+      BUCKET_NAME: "bck-finclip-staging"
+      ACCESS_ID: "finogeeks"
+      SECRET_KEY: "!encAnK88#@abIObcd)9"
+      STORAGE_FROM: "minio"
+      minioAccessKeyID: "finogeeks"
+      minioEndpoint: "finclip-minio:9000"
+      minioSecretAccessKey: "!encAnK88#@abIObcd)9"
+      storageFrom: "minio"
+      bucketName: "bck-finclip-staging"
+      db: "netdisk-finclip-staging"
+      DB_NAME: "finclip-netdisk-finclip-staging"
+      emoteUploadDir: "/opt/emote_upload"
+      validFileTypes: 'csv,png,jpg,jpeg,zip,text,bmp,gif,octet-stream,xlsx,svg,video/mp4,mp4,mp3,video,MP4,MP3'
+      FILE_TYPES: 'csv,png,jpg,jpeg,zip,text,bmp,gif,octet-stream,xlsx,svg,video/mp4,mp4,mp3,video,MP4,MP3'
+      DB_MODE: "mysql"
+      MYSQL_URL: "root:4OwJbHCzKN2Gpg@tcp(finclip-mysql:3306)/finclip?charset=utf8mb4"
+      KAFKA_ADDR: ''
+      MONGO_URL: ''
+      PUB_ENV: "mop-private"
+    depends_on:
+      - finclip-minio
+      - finclip-mysql
+
+  mop-init:
+    image: ${mop_init}
+    container_name: mop-init
+    environment:
+      - ENV_TYPE=mop
+    depends_on:
+      - finclip-gateway
+      - mop-basic-pack-svr
+    command:
+      - sh
+      - -c
+      - |
+        sleep 300s
+        node download.js
+        node index.js
