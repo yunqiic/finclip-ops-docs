@@ -5,6 +5,6 @@ wget https://img-cdn.finogeeks.club/mop/.env-20220519
 wget https://img-cdn.finogeeks.club/mop/docker-compose.yaml-20220519
 
 cd docker
-docker-compose up -d mysql
-docker-compose up -d
+sudo docker-compose up -d finclip-mysql
+sudo docker-compose up -d
 ```
