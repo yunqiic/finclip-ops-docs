@@ -40,7 +40,7 @@ services:
         max-file: '5'
       driver: json-file
     volumes:
-      #- ${BASE_STORAGE_DIR}/mysql:/bitnami/mysql/data
+      - ${BASE_STORAGE_DIR}/mysql:/bitnami/mysql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - '3317:3306'
