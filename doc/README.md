@@ -7,6 +7,7 @@ wget https://img-cdn.finogeeks.club/mop/docker-compose.yaml-20220519
 cd docker
 sudo docker-compose up -d finclip-mysql
 sudo docker-compose up -d
+sudo docker-compose down
 
 sudo docker-compose logs -f
 sudo docker-compose logs -f finclip-mysql
