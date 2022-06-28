@@ -1,0 +1,9 @@
+finclip-mysql               | mysql: Can't get stat of '/opt/bitnami/mysql/conf/bitnami/my_custom.cnf' (OS errno 2 - No such file or directory)
+finclip-mysql               | mysql: [ERROR] Stopped processing the 'include' directive in file /opt/bitnami/mysql/conf/my.cnf at line 32.
+finclip-mysql               | mysql: [Warning] Using a password on the command line interface can be insecure.
+finclip-mysql               | mysql: Can't get stat of '/opt/bitnami/mysql/conf/bitnami/my_custom.cnf' (OS errno 2 - No such file or directory)
+finclip-mysql               | mysql: [ERROR] Stopped processing the 'include' directive in file /opt/bitnami/mysql/conf/my.cnf at line 32.
+finclip-mysql               | mysql: Can't get stat of '/opt/bitnami/mysql/conf/bitnami/my_custom.cnf' (OS errno 2 - No such file or directory)
+finclip-mysql               | mysql: [ERROR] Stopped processing the 'include' directive in file /opt/bitnami/mysql/conf/my.cnf at line 32.
+finclip-mysql               | mysql: Can't get stat of '/opt/bitnami/mysql/conf/bitnami/my_custom.cnf' (OS errno 2 - No such file or directory)
+finclip-mysql               | mysql: [ERROR] Stopped processing the 'include' directive in file /opt/bitnami/mysql/conf/my.cnf at line 32.
