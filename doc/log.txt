@@ -7,3 +7,41 @@ finclip-mysql               | mysql: Can't get stat of '/opt/bitnami/mysql/conf/
 finclip-mysql               | mysql: [ERROR] Stopped processing the 'include' directive in file /opt/bitnami/mysql/conf/my.cnf at line 32.
 finclip-mysql               | mysql: Can't get stat of '/opt/bitnami/mysql/conf/bitnami/my_custom.cnf' (OS errno 2 - No such file or directory)
 finclip-mysql               | mysql: [ERROR] Stopped processing the 'include' directive in file /opt/bitnami/mysql/conf/my.cnf at line 32.
+
+sudo docker-compose ps
+          Name                        Command               State                                   Ports
+------------------------------------------------------------------------------------------------------------------------------------------
+finclip-app-ext-svr        /bin/sh -c /opt/finclip-ap ...   Up
+finclip-gateway            /docker-entrypoint.sh kong ...   Up      0.0.0.0:8100->8000/tcp,:::8100->8000/tcp, 8001/tcp, 8443/tcp, 8444/tcp
+finclip-minio              /usr/bin/docker-entrypoint ...   Up      9000/tcp
+finclip-mysql              /opt/bitnami/scripts/mysql ...   Up      0.0.0.0:3317->3306/tcp,:::3317->3306/tcp
+finclip-redis              docker-entrypoint.sh redis ...   Up      6379/tcp
+mop-account-system         /bin/sh -c /opt/mop-accoun ...   Up
+mop-app-manage-svr         /bin/sh -c ./finclip-app-m ...   Up
+mop-applet-build           /entrypoint.sh sh bin/start.sh   Up      8080/tcp
+mop-applet-build-manager   /bin/sh -c /opt/mop-applet ...   Up
+mop-article-pub-center     /bin/sh -c ./finclip-artic ...   Up
+mop-audit-manage-svr       /bin/sh -c ./mop-audit-man ...   Up
+mop-auth-checker           /bin/sh -c /opt/mop-auth-c ...   Up
+mop-basic-pack-svr         /bin/sh -c ./mop-basic-pac ...   Up
+mop-control-manager        /bin/sh -c /opt/mop-contro ...   Up
+mop-device-security        /bin/sh -c ./finclip-devic ...   Up
+mop-domain-manager         /bin/sh -c /opt/finclip-do ...   Up
+mop-fast-trial-manager     /bin/sh -c /opt/mop-fast-t ...   Up
+mop-feedback-svr           /bin/sh -c ./finclip-feedb ...   Up
+mop-front-login            /docker-entrypoint.sh sh r ...   Up      80/tcp
+mop-front-mechanism        /docker-entrypoint.sh sh r ...   Up      80/tcp
+mop-front-operate          /docker-entrypoint.sh sh r ...   Up      80/tcp
+mop-help-center-svr        /bin/sh -c /opt/finclip-he ...   Up
+mop-init                   sh -c sleep 300s                 Up
+                           node down ...
+mop-license-checker        sh -c sleep 10s                  Up
+                           /opt/mop-l ...
+mop-netdisk-proxy          /bin/sh -c ./mop-netdisk-proxy   Up
+mop-notify                 /bin/sh -c /opt/finclip-notify   Up
+mop-open-api               /bin/sh -c ./mop-open-api        Up
+mop-private-init-server    /bin/sh -c /opt/mop-privat ...   Up
+mop-rule-engine-svr        /bin/sh -c ./finclip-rule- ...   Up
+mop-scattered-page         /docker-entrypoint.sh sh r ...   Up      80/tcp
+mop-verify-code-gateway    /bin/sh -c /opt/mop-verify ...   Up
+netdisk                    /bin/sh -c /opt/finclip-ne ...   Up

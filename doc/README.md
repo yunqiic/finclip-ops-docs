@@ -16,8 +16,11 @@ sudo docker exec -it finclip-mysql bash
 sudo docker-compose up -d
 sudo docker-compose down
 
+sudo docker-compose ps
+
 sudo docker-compose logs -f
 sudo docker-compose logs -f finclip-mysql
+sudo docker-compose logs -f mop-audit-manage-svr
 
 sudo docker-compose stop
 sudo docker-compose rm -s -v
