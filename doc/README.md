@@ -9,6 +9,7 @@ sudo docker-compose up -d finclip-mysql
 sudo docker-compose up -d
 
 sudo docker-compose logs -f
+sudo docker-compose logs -f finclip-mysql
 
 sudo docker-compose stop
 sudo docker-compose rm -s -v
