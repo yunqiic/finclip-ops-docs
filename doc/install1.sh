@@ -2,11 +2,6 @@
 
 FINCLIP_CE_VER=20220519
 
-# https://img-cdn.finogeeks.club/mop/init.sql-20220519
-# https://img-cdn.finogeeks.club/mop/kong.yml-20220519
-# https://img-cdn.finogeeks.club/mop/.env-20220519
-# https://img-cdn.finogeeks.club/mop/docker-compose.yaml-20220519
-
 export basedir=$(cd $(dirname $0); pwd)
 
 export             INIT_SQL=https://img-cdn.finogeeks.club/mop/init.sql-${FINCLIP_CE_VER}
